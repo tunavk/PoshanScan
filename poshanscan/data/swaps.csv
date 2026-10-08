@@ -1,0 +1,31 @@
+category,nutrient,swap,cost_note
+biscuit,sugar,8901063162914,
+biscuit,sugar,text:A handful of roasted chana or peanuts,cheaper per serving
+biscuit,salt,8901063162914,
+biscuit,satfat,8901063162914,
+biscuit,satfat,8906161390719,
+chips,salt,8906161390719,
+chips,satfat,8906161390719,
+chips,any,text:Home-roasted peanuts or chana with a squeeze of lemon,cheaper per serving
+noodles,salt,text:Use only HALF the tastemaker sachet and add a handful of vegetables,costs nothing extra
+noodles,satfat,8901042967325,
+soft_drink,sugar,8901262200196,
+soft_drink,sugar,text:Nimbu pani with little or no sugar,much cheaper
+juice_drink,sugar,8904272600291,
+juice_drink,sugar,text:A whole fruit (banana or orange) instead of packaged juice,cheaper
+energy_drink,sugar,8901262200196,
+energy_drink,sugar,text:Nimbu pani with a pinch of salt,much cheaper
+malt_drink,sugar,"text:Plain milk, or use HALF a scoop of the powder",costs less
+chocolate,sugar,text:A small handful of roasted peanuts or a banana,cheaper
+chocolate,satfat,text:A small handful of roasted peanuts or a banana,cheaper
+spread,sugar,8901030980053,
+cereal,sugar,8904335604150,
+cereal,sugar,text:Plain oats or poha cooked at home,cheaper
+condiment,sugar,text:Homemade green chutney (mint and coriander),cheaper
+condiment,salt,text:Homemade green chutney (mint and coriander),cheaper
+dairy_drink,sugar,8901262200196,
+dairy_drink,sugar,text:Plain dahi or unsweetened lassi made at home,cheaper
+dairy_drink,salt,text:Plain chaas made at home with just a pinch of salt,cheaper
+fat,satfat,text:Use half the usual amount; spread thinly,costs less
+breakfast,salt,text:Cook poha at home with less salt and add peanuts and vegetables,cheaper
+any,any,text:Try a homemade or less-processed version of the same food,usually cheaper
