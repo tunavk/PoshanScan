@@ -1,13 +1,22 @@
 # PoshanScan prototype
 
-WhatsApp nutrition nudge: send a barcode photo or a shopping list, get **one warning** and **one affordable swap**.
+WhatsApp nutrition nudge: send a photo of a product's barcode (or type what you're buying), get **one warning**
+and **one affordable swap**.
+
+**Barcode-first (default, free).** Barcodes are read on our own server (zxing-cpp), and typed names and lists are
+matched against ~7,300 products. No API key or paid service is needed. Photos of pack fronts, nutrition tables and
+written lists are an optional extra (section 3). Without a key the bot never offers them.
 
 ```
 WhatsApp → Twilio → /whatsapp webhook (server.py)
-  → bot.py: consent / commands / route input
-      ├─ photo with barcode → zxing-cpp decodes → products.py (curated CSV → Open Food Facts)
-      ├─ photo without one  → vision.py (Claude) reads list or nutrition table   [optional]
+  → bot.py: consent / commands / route input (all photos in a message are read together)
+      ├─ barcode            → zxing-cpp decodes → products.py lookup
+      ├─ front of pack      → vision.py (Claude) reads brand/name/flavour → products.search → "Which one is it?" if unsure
+      ├─ nutrition table    → vision.py reads the numbers → answer straight away + remember the product (contrib.py)
+      ├─ list photo         → vision.py reads the items
       └─ typed text         → barcode digits, or fuzzy-matched shopping list
+  → products.py lookup order: curated CSV → catalog.db (Open Food Facts India) → shoppers' contributions → live Open Food Facts
+     (every source except our own CSV goes through quality.py sanity checks)
   → scoring.py: Chile "high in" thresholds + ICMR-NIN daily limits → single worst nutrient
   → swaps.py: curated swap that is ≥25% lower, adds no new "high in", and costs no more per serving
   → messages.py (English/Hindi) + label_image.py (black octagon PNG)
@@ -43,11 +52,37 @@ or `/img path/to/barcode.jpg`. `week` (last 7 days), `hindi`, `english`, `stop` 
 The quick-tunnel URL changes each time cloudflared restarts. When it does, update `.env` and the Twilio setting.
 Each tester has to send the `join` message once.
 
-## 3. Optional: reading list photos and nutrition labels
+## 3. Optional: photos of pack fronts, labels and lists
 
-Put an `ANTHROPIC_API_KEY` in `.env`. Without a key, barcodes and typed lists still work. Photos without a barcode
-get a "couldn't read it, type the name instead" reply. With a key, Claude only *transcribes* the photo.
-Every health judgement stays in the rule-based `scoring.py`.
+Off by default. Put an `ANTHROPIC_API_KEY` in `.env` to switch it on (about 1–2 cents per photo). Without a key, the
+bot runs barcode-first: its welcome/help messages only offer barcode photos and typing, an unknown barcode gets
+"try typing the product name", and front-of-pack photos, nutrition tables, list photos and teaching new products are off. Claude only *reads* the photo (names and printed
+numbers). It never estimates nutrients, and every health judgement stays in the rule-based `scoring.py`.
+
+**Teaching the bot a product it doesn't know.** An unknown barcode or front photo makes the bot ask for the nutrition
+table (and the front, for the name). The shopper gets their answer from their own photo straight away, and the numbers
+are saved for everyone:
+
+- one shopper's reading is shown to others as *"from one shopper's photo, not yet confirmed"*
+- once two different shoppers' readings agree (within 10%), it is shown as *"from shoppers' photos"*
+- readings that fail the sanity checks (impossible values, calories not matching fat/carbs/protein) are rejected
+- photos are never stored, only the numbers; `STOP` keeps a user's contributions but removes the link to them
+
+Tests (no API key needed):
+
+- `.venv/bin/python tests/test_barcode_only.py`: barcode-first mode, real barcode decoding on generated photos
+- `.venv/bin/python tests/test_photo_flows.py`: the optional photo flows, with canned photo readings
+
+## 4. The product catalogue
+
+`poshanscan/data/catalog.db` holds the Open Food Facts products sold in India that passed `quality.py`.
+`catalog_report.txt` lists how many were kept and why the rest were rejected (useful for the report). To rebuild it with
+newer data:
+
+```bash
+.venv/bin/pip install -r scripts/requirements-import.txt
+.venv/bin/python scripts/import_off.py
+```
 
 ## Editing the data (no coding needed)
 
@@ -74,7 +109,8 @@ and juice are judged on total sugar. Note this as a limitation.
 ## Data collected (for the ethics section)
 
 `poshanscan.db` stores a salted hash of the phone number (never the number itself), consent, language, and each
-scan/warning/swap/feedback event. `STOP` deletes all of a user's rows. Nothing is sent to anyone else, except
-photos when the optional Claude step is on, and barcodes looked up on Open Food Facts.
+scan/warning/swap/feedback event, plus the label numbers shoppers contribute. `STOP` deletes all of a user's rows and
+unlinks their contributions. Photos are sent to Anthropic's API to be read and are not stored by the bot. Barcodes
+not in our data are looked up on Open Food Facts. Contributed label numbers are shown to other users, never who sent them.
 
 To see results: `sqlite3 poshanscan.db "select kind, product, nutrient, detail from events"`.
