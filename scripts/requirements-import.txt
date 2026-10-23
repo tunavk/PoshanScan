@@ -1,0 +1,2 @@
+# Only needed to rebuild the product catalogue (scripts/import_off.py), not to run the bot.
+duckdb==2.0.0

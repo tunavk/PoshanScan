@@ -6,15 +6,18 @@ T = {
     "en": {
         "welcome": (
             "🙏 Namaste! I'm *PoshanScan*.\n\n"
-            "Send me a *photo of a barcode* or your *shopping list* and I'll tell you the one thing "
-            "to watch and one easy swap.\n\n"
+            "Send me a *photo of a product* (front or barcode) or your *shopping list* and I'll tell you "
+            "the one thing to watch and one easy swap.\n\n"
             "🔒 To do this I store your scans (not your name). Your number is stored in scrambled form. "
+            "Photos are read by an AI service and not kept. If you teach me a new product, its label "
+            "numbers are shared with other users, never who sent them. "
             "Type *STOP* at any time to delete everything.\n\n"
             "Reply *YES* to agree and start. (हिंदी के लिए *HINDI* लिखें)"
         ),
-        "ready": "✅ All set! Send a barcode photo, a photo of your list, or type your list like:\n_maggi, thums up, parle g_",
+        "ready": "✅ All set! Send a photo of a product (front or barcode), a photo of your list, or type your list like:\n_maggi, thums up, parle g_",
         "stopped": "🗑️ Done. Your data has been deleted and you won't get messages from me. Send *HI* any time to start again.",
-        "help": "📷 Send a *barcode photo* or *shopping list* (photo or typed, e.g. _maggi, pepsi, marie_).\n"
+        "help": "📷 Send a photo of a *product* (front or barcode), its *nutrition table*, or your *shopping list* "
+                "(photo or typed, e.g. _maggi, pepsi, marie_).\n"
                 "*WEEK* for your last 7 days · *HINDI* / *ENGLISH* to switch language · *STOP* to delete your data.",
         "pattern": "📅 That's your *{nth}* item high in {nutrient} this week.",
         "pattern_strong": "📅 That's your *{nth}* item high in {nutrient} this week. Swapping just one of them makes a difference.",
@@ -49,6 +52,27 @@ T = {
         "serving_100": "100 {unit}",
         "source_off": "_(data: Open Food Facts, may vary from your pack)_",
         "source_label": "_(read from your photo of the label)_",
+        "source_contributed": "_(from one shopper's photo of the label, not yet confirmed)_",
+        "source_confirmed": "_(from shoppers' photos of the label)_",
+        "teach_ask": "🔍 I don't know this product yet (barcode *{code}*). Help me learn it! Send 2 photos:\n"
+                     "📸 1. the *front* of the pack\n📸 2. the *nutrition table* on the back\n"
+                     "You'll get your answer straight away, and so will the next person who scans it. (*skip* to cancel)",
+        "barcode_unknown_novision": "🔍 I don't know barcode *{code}* yet. Try typing the product name instead.",
+        "got_front": "👍 Got it: *{name}*. Now send a photo of the *nutrition table* on the back. (*skip* to cancel)",
+        "unknown_front": "🔍 I don't know *{name}* yet. Send a photo of its *nutrition table* and I'll check it, "
+                         "and remember it for others. (*skip* to cancel)",
+        "need_front": "📸 One more: a photo of the *front* of the pack, so others can find it by name. (*skip* to finish)",
+        "saved": "🙏 Thanks! I've saved this product, so the next person who scans it gets an answer too.",
+        "named": "🙏 Thanks! Saved as *{name}*.",
+        "label_unreadable": "📷 I couldn't read the nutrition table clearly. Please send a sharper photo, straight on, "
+                            "showing the *per 100 g* (or per 100 ml) column.",
+        "photo_unreadable": "📷 I couldn't make out that photo. Try a clear photo of the *front* of the pack, "
+                            "its *barcode*, or its *nutrition table*.",
+        "choose_head": "🤔 Which one is it?",
+        "choose_none": "*0* None of these",
+        "matched_hint": "_Not the right product? Send a photo of its barcode._",
+        "skipped": "👍 No problem, cancelled.",
+        "this_product": "This product",
     },
     "hi": {
         "welcome": "🙏 नमस्ते! मैं *PoshanScan* हूँ।\n\nबारकोड या शॉपिंग लिस्ट की फोटो भेजें।",
@@ -88,6 +112,25 @@ T = {
         "serving_100": "100 {unit}",
         "source_off": "_(डेटा: Open Food Facts)_",
         "source_label": "_(आपकी लेबल फोटो से पढ़ा गया)_",
+        "source_contributed": "_(एक ग्राहक की लेबल फोटो से, अभी पुष्टि नहीं हुई)_",
+        "source_confirmed": "_(ग्राहकों की लेबल फोटो से)_",
+        "teach_ask": "🔍 यह प्रोडक्ट (बारकोड *{code}*) मेरे पास अभी नहीं है। इसे सीखने में मदद करें! 2 फोटो भेजें:\n"
+                     "📸 1. पैकेट का *सामने* का हिस्सा\n📸 2. पीछे की *न्यूट्रिशन टेबल*\n"
+                     "आपको जवाब तुरंत मिलेगा, और अगली बार स्कैन करने वाले को भी। (रद्द करने के लिए *skip*)",
+        "barcode_unknown_novision": "🔍 बारकोड *{code}* मेरे पास नहीं है। प्रोडक्ट का नाम टाइप करके देखें।",
+        "got_front": "👍 मिल गया: *{name}*। अब पीछे की *न्यूट्रिशन टेबल* की फोटो भेजें। (रद्द करने के लिए *skip*)",
+        "unknown_front": "🔍 *{name}* मेरे पास अभी नहीं है। इसकी *न्यूट्रिशन टेबल* की फोटो भेजें, मैं जाँच करूँगा "
+                         "और दूसरों के लिए याद रखूँगा। (रद्द करने के लिए *skip*)",
+        "need_front": "📸 एक और: पैकेट के *सामने* की फोटो, ताकि दूसरे इसे नाम से ढूँढ सकें। (ख़त्म करने के लिए *skip*)",
+        "saved": "🙏 धन्यवाद! मैंने यह प्रोडक्ट सेव कर लिया है, अगली बार स्कैन करने वाले को भी जवाब मिलेगा।",
+        "named": "🙏 धन्यवाद! *{name}* के नाम से सेव किया।",
+        "label_unreadable": "📷 न्यूट्रिशन टेबल साफ़ नहीं पढ़ पाया। सीधी, साफ़ फोटो भेजें जिसमें *प्रति 100 ग्राम* (या 100 ml) वाला कॉलम दिखे।",
+        "photo_unreadable": "📷 फोटो समझ नहीं पाया। पैकेट के *सामने*, *बारकोड*, या *न्यूट्रिशन टेबल* की साफ़ फोटो भेजें।",
+        "choose_head": "🤔 इनमें से कौन सा है?",
+        "choose_none": "*0* इनमें से कोई नहीं",
+        "matched_hint": "_सही प्रोडक्ट नहीं है? इसके बारकोड की फोटो भेजें।_",
+        "skipped": "👍 ठीक है, रद्द किया।",
+        "this_product": "यह प्रोडक्ट",
     },
 }
 # Hindi users still see the consent/privacy details in full.
@@ -131,10 +174,10 @@ def warning(v: Verdict, swap: Swap | None, lang: str) -> str:
         if swap.cost_note:
             s += f", {swap.cost_note}"
         lines += ["", t(lang, "try", swap=s)]
-    if p.source == "Open Food Facts":
-        lines += ["", t(lang, "source_off")]
-    elif p.source == "label photo":
-        lines += ["", t(lang, "source_label")]
+    caption = {"imported": "source_off", "label photo": "source_label",
+               "contributed": "source_contributed", "confirmed": "source_confirmed"}.get(p.source)
+    if caption:
+        lines += ["", t(lang, caption)]
     return "\n".join(lines)
 
 
@@ -166,4 +209,9 @@ def week_summary(w: dict, lang: str) -> str:
         lines.append(t(lang, "week_high", parts=parts))
     if w["answered"]:
         lines.append(t(lang, "week_swaps", s=w["switch"], a=w["answered"]))
+    return "\n".join(lines)
+
+
+def choose_list(names: list[str], lang: str) -> str:
+    lines = [t(lang, "choose_head")] + [f"*{i}* {n}" for i, n in enumerate(names, 1)] + [t(lang, "choose_none")]
     return "\n".join(lines)

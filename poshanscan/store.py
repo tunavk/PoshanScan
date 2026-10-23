@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS events_uid_ts ON events (uid, ts);
 
 WEEK = 7 * 24 * 3600
 # Events that mean "the user checked a product" (as opposed to consent, feedback, ...)
-CHECK_KINDS = ("barcode_scan", "name_lookup", "label_scan", "list_pick", "list_item")  # list_pick: older rows
+CHECK_KINDS = ("barcode_scan", "name_lookup", "label_scan", "front_scan", "list_pick", "list_item")  # list_pick: older rows
 
 
 def uid(phone: str) -> str:
