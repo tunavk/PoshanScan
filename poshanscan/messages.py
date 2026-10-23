@@ -133,8 +133,30 @@ T = {
         "this_product": "यह प्रोडक्ट",
     },
 }
+# Barcode-only versions, used when photo reading is off (no ANTHROPIC_API_KEY): never promise what we can't do.
+T["en"].update({
+    "welcome_barcode": (
+        "🙏 Namaste! I'm *PoshanScan*.\n\n"
+        "Send me a *photo of a product's barcode*, or type what you're buying (e.g. _maggi, pepsi, parle g_), "
+        "and I'll tell you the one thing to watch and one easy swap.\n\n"
+        "🔒 To do this I store your scans (not your name). Your number is stored in scrambled form. "
+        "Type *STOP* at any time to delete everything.\n\n"
+        "Reply *YES* to agree and start. (हिंदी के लिए *HINDI* लिखें)"
+    ),
+    "ready_barcode": "✅ All set! Send a photo of a product's *barcode*, or type your list like:\n_maggi, thums up, parle g_",
+    "help_barcode": "📷 Send a photo of a product's *barcode*, or type products / your shopping list "
+                    "(e.g. _maggi, pepsi, marie_).\n"
+                    "*WEEK* for your last 7 days · *HINDI* / *ENGLISH* to switch language · *STOP* to delete your data.",
+})
+T["hi"].update({
+    "welcome_barcode": "🙏 नमस्ते! मैं *PoshanScan* हूँ।\n\nप्रोडक्ट के *बारकोड* की फोटो भेजें, या जो खरीद रहे हैं उसका नाम लिखें।",
+    "ready_barcode": "✅ तैयार! प्रोडक्ट के *बारकोड* की फोटो भेजें, या लिस्ट टाइप करें, जैसे:\n_maggi, thums up, parle g_",
+    "help_barcode": "📷 प्रोडक्ट के *बारकोड* की फोटो भेजें, या प्रोडक्ट / शॉपिंग लिस्ट टाइप करें।\n"
+                    "*WEEK* पिछले 7 दिन · *ENGLISH* भाषा बदलने के लिए · *STOP* डेटा मिटाने के लिए।",
+})
 # Hindi users still see the consent/privacy details in full.
 T["hi"]["welcome"] += "\n\n" + T["en"]["welcome"].split("\n\n", 1)[1]
+T["hi"]["welcome_barcode"] += "\n\n" + T["en"]["welcome_barcode"].split("\n\n", 1)[1]
 
 
 def t(lang: str, key: str, **kw) -> str:

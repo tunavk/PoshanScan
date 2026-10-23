@@ -33,6 +33,12 @@ class Incoming:
     images: list[tuple[bytes, str]] = field(default_factory=list)  # (bytes, mime type)
 
 
+def intro(lang: str, key: str) -> str:
+    """Welcome / ready / help text. Without photo reading, the barcode-only version, so the bot
+    never invites photos of fronts, labels or lists that it can't read."""
+    return t(lang, key if vision.available() else f"{key}_barcode")
+
+
 YES = {"yes", "y", "haan", "ha", "han", "हाँ", "हां", "ok", "okay", "agree"}
 GREETINGS = {"hi", "hello", "hey", "start", "namaste", "hii"}
 
@@ -50,24 +56,24 @@ def handle(msg: Incoming) -> list[Reply]:
         return [Reply(t(lang, "stopped"))]
     if cmd in {"hindi", "हिंदी"}:
         store.update_user(u, lang="hi")
-        return [Reply(t("hi", "ready" if user["consented"] else "welcome"))]
+        return [Reply(intro("hi", "ready" if user["consented"] else "welcome"))]
     if cmd == "english":
         store.update_user(u, lang="en")
-        return [Reply(t("en", "ready" if user["consented"] else "welcome"))]
+        return [Reply(intro("en", "ready" if user["consented"] else "welcome"))]
 
     if not user["consented"]:
         if cmd in YES:
             store.update_user(u, consented=1)
             store.log(u, "consent")
-            return [Reply(t(lang, "ready"))]
+            return [Reply(intro(lang, "ready"))]
         if user["new"] or cmd in GREETINGS:
-            return [Reply(t(lang, "welcome"))]
+            return [Reply(intro(lang, "welcome"))]
         return [Reply(t(lang, "need_consent"))]
 
     if cmd in YES:
-        return [Reply(t(lang, "ready"))]
+        return [Reply(intro(lang, "ready"))]
     if cmd in {"help", "?", "menu"} or cmd in GREETINGS:
-        return [Reply(t(lang, "help"))]
+        return [Reply(intro(lang, "help"))]
     if cmd in {"week", "hafta", "हफ़्ता", "हफ्ता"}:
         return [Reply(week_summary(store.week_summary(u), lang))]
 
@@ -94,7 +100,7 @@ def handle(msg: Incoming) -> list[Reply]:
 
     items = [x.strip() for x in re.split(r"[\n,;]+", text) if x.strip()]
     if not items:
-        return [Reply(t(lang, "help"))]
+        return [Reply(intro(lang, "help"))]
     return _handle_list(u, lang, items)
 
 

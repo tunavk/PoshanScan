@@ -1,7 +1,11 @@
 # PoshanScan prototype
 
-WhatsApp nutrition nudge: send a photo of a product (front or barcode) or a shopping list, get **one warning**
+WhatsApp nutrition nudge: send a photo of a product's barcode (or type what you're buying), get **one warning**
 and **one affordable swap**.
+
+**Barcode-first (default, free).** Barcodes are read on our own server (zxing-cpp), and typed names and lists are
+matched against ~7,300 products. No API key or paid service is needed. Photos of pack fronts, nutrition tables and
+written lists are an optional extra (section 3). Without a key the bot never offers them.
 
 ```
 WhatsApp → Twilio → /whatsapp webhook (server.py)
@@ -48,10 +52,11 @@ or `/img path/to/barcode.jpg`. `week` (last 7 days), `hindi`, `english`, `stop` 
 The quick-tunnel URL changes each time cloudflared restarts. When it does, update `.env` and the Twilio setting.
 Each tester has to send the `join` message once.
 
-## 3. Photos of products, labels and lists
+## 3. Optional: photos of pack fronts, labels and lists
 
-Put an `ANTHROPIC_API_KEY` in `.env`. Without a key, barcodes and typed lists still work, but front-of-pack photos,
-nutrition tables, list photos and teaching new products don't. Claude only *reads* the photo (names and printed
+Off by default. Put an `ANTHROPIC_API_KEY` in `.env` to switch it on (about 1–2 cents per photo). Without a key, the
+bot runs barcode-first: its welcome/help messages only offer barcode photos and typing, an unknown barcode gets
+"try typing the product name", and front-of-pack photos, nutrition tables, list photos and teaching new products are off. Claude only *reads* the photo (names and printed
 numbers). It never estimates nutrients, and every health judgement stays in the rule-based `scoring.py`.
 
 **Teaching the bot a product it doesn't know.** An unknown barcode or front photo makes the bot ask for the nutrition
@@ -63,7 +68,10 @@ are saved for everyone:
 - readings that fail the sanity checks (impossible values, calories not matching fat/carbs/protein) are rejected
 - photos are never stored, only the numbers; `STOP` keeps a user's contributions but removes the link to them
 
-Check the photo flows without an API key (canned photo readings): `.venv/bin/python tests/test_photo_flows.py`
+Tests (no API key needed):
+
+- `.venv/bin/python tests/test_barcode_only.py`: barcode-first mode, real barcode decoding on generated photos
+- `.venv/bin/python tests/test_photo_flows.py`: the optional photo flows, with canned photo readings
 
 ## 4. The product catalogue
 
