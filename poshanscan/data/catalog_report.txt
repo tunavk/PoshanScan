@@ -1,0 +1,31 @@
+Open Food Facts India import: 24920 rows read, 7261 products kept
+
+Rejected (first problem found):
+   13911  missing sugar, sodium or saturated fat
+    3388  no product name
+     134  sodium N mg out of range
+     106  calories N don't match macros (N)
+      58  no valid barcode
+      31  sugar higher than total carbohydrate
+      18  saturated fat higher than total fat
+       7  sugar N g out of range
+       3  components add up to more than N g
+       3  saturated fat N g out of range
+
+Kept, by category:
+    3552  any
+     564  chocolate
+     556  biscuit
+     412  chips
+     383  healthy_snack
+     330  condiment
+     319  juice_drink
+     258  spread
+     225  cereal
+     194  noodles
+     175  bread
+     125  dairy_drink
+     102  soft_drink
+      23  malt_drink
+      23  fat
+      20  energy_drink

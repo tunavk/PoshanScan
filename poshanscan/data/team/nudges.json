@@ -1,0 +1,29 @@
+{
+  "templates": {
+    "sugar_1": "Heads up: about {tsp} teaspoons of added sugar here. A whole day's limit is about {limit_tsp}.",
+    "sugar_n": "That's your {ordinal} high sugar item today. You're at {tsp_today} of {limit_tsp} teaspoons. {swap_name} would scratch the same itch.",
+    "sugar_over": "That's your {ordinal} high sugar item today. You're at {tsp_today} of {limit_tsp} teaspoons. That's more than {days_worth} worth. {swap_name} would scratch the same itch.",
+    "salt_1": "Heads up: about {salt} g of salt here, {salt_share} of your {limit_salt} g for the day.",
+    "salt_n": "That's your {ordinal} salty pick today, about {salt_today} g of your {limit_salt} g for the day.",
+    "fat": "This one is fried. {swap_name} keeps the crunch.",
+    "fatty": "This one is high in saturated fat. {swap_name} feels just as filling.",
+    "streak": "{days} days in a row with a {group} pick. Want three swaps that still taste {taste}?",
+    "praise_1": "Nice pick, nothing high in this one.",
+    "praise_n": "Nice pick. That's {count} clean picks today.",
+    "no_data": "We don't have the full label for this one yet, so no reminder this time."
+  },
+  "groups": {
+    "sugary": {
+      "word": "sugary",
+      "taste": "sweet"
+    },
+    "salty": {
+      "word": "salty",
+      "taste": "salty"
+    },
+    "fried or fatty": {
+      "word": "fried",
+      "taste": "crunchy"
+    }
+  }
+}

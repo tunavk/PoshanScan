@@ -1,0 +1,26 @@
+{
+  "limits": {
+    "solid": {
+      "sugar": 10.0,
+      "salt": 400.0,
+      "satfat": 4.0
+    },
+    "liquid": {
+      "sugar": 5.0,
+      "salt": 100.0,
+      "satfat": 3.0
+    }
+  },
+  "daily": {
+    "sugar_g": 25.0,
+    "salt_g": 5.0
+  },
+  "sugar_per_tsp_g": 4.0,
+  "salt_per_sodium": 2.5,
+  "grade_bands": {
+    "A": 0.25,
+    "B": 0.5,
+    "C": 1.0,
+    "D": 2.0
+  }
+}

@@ -1,17 +1,28 @@
 # PoshanScan prototype
 
-WhatsApp nutrition nudge: send a barcode photo or a shopping list, get **one warning** and **one affordable swap**.
+WhatsApp nutrition nudge: send a photo of a product's barcode (or type what you're buying), get **one warning**
+and **one affordable swap**.
+
+**Barcode-first (default, free).** Barcodes are read on our own server (zxing-cpp), and typed names and lists are
+matched against the team's food database (403 products incl. McDonald's, KFC and street food, plus 375 healthy
+alternatives) and ~7,300 more from Open Food Facts. No API key or paid service is needed. Photos of pack fronts, nutrition tables and
+written lists are an optional extra (section 3). Without a key the bot never offers them.
 
 ```
 WhatsApp → Twilio → /whatsapp webhook (server.py)
-  → bot.py: consent / commands / route input
-      ├─ photo with barcode → zxing-cpp decodes → products.py (curated CSV → Open Food Facts)
-      ├─ photo without one  → vision.py (Claude) reads list or nutrition table   [optional]
+  → bot.py: consent / commands / route input (all photos in a message are read together)
+      ├─ barcode            → zxing-cpp decodes → products.py lookup
+      ├─ front of pack      → vision.py (Claude) reads brand/name/flavour → products.search → "Which one is it?" if unsure
+      ├─ nutrition table    → vision.py reads the numbers → answer straight away + remember the product (contrib.py)
+      ├─ list photo         → vision.py reads the items
       └─ typed text         → barcode digits, or fuzzy-matched shopping list
-  → scoring.py: Chile "high in" thresholds + ICMR-NIN daily limits → single worst nutrient
-  → swaps.py: curated swap that is ≥25% lower, adds no new "high in", and costs no more per serving
+  → products.py lookup order: team database (team.py) → curated CSV → catalog.db (Open Food Facts India)
+     → shoppers' contributions → live Open Food Facts (outside sources go through quality.py sanity checks)
+  → scoring.py: the team's rules (limits, added sugar, A–E grades) → grade + every HIGH nutrient, worst first
+  → swaps.py: the team's matched swap (Same craving; MORE shows Cheaper + Best for health),
+     or the curated swap table for products the team hasn't covered
   → messages.py (English/Hindi) + label_image.py (black octagon PNG)
-  → 7-day memory: "That's your 3rd item high in sugar this week" (store.py)
+  → nudges.py: the team's daily reminders ("second high sugar item today, 8 of 6 teaspoons", streaks, praise)
   → reply sent via Twilio REST API; event logged to SQLite (hashed numbers)
 ```
 
@@ -21,8 +32,8 @@ WhatsApp → Twilio → /whatsapp webhook (server.py)
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python simulate.py
 ```
-Type `yes`, then things like `maggi`, `pepsi, parle g, roasted chana`, `8901058000290`,
-or `/img path/to/barcode.jpg`. `week` (last 7 days), `hindi`, `english`, `stop` also work.
+Type `yes`, then things like `good day`, `pepsi`, `samosa`, `mcaloo tikki`, `oreo, lays, diet coke`, `8901058000290`,
+or `/img path/to/barcode.jpg`. `more` (other swaps), `week` (last 7 days), `hindi`, `english`, `stop` also work.
 
 ## 2. Connect to real WhatsApp (Twilio sandbox, ~15 min)
 
@@ -43,13 +54,61 @@ or `/img path/to/barcode.jpg`. `week` (last 7 days), `hindi`, `english`, `stop` 
 The quick-tunnel URL changes each time cloudflared restarts. When it does, update `.env` and the Twilio setting.
 Each tester has to send the `join` message once.
 
-## 3. Optional: reading list photos and nutrition labels
+## 3. Optional: photos of pack fronts, labels and lists
 
-Put an `ANTHROPIC_API_KEY` in `.env`. Without a key, barcodes and typed lists still work. Photos without a barcode
-get a "couldn't read it, type the name instead" reply. With a key, Claude only *transcribes* the photo.
-Every health judgement stays in the rule-based `scoring.py`.
+Off by default. Put an `ANTHROPIC_API_KEY` in `.env` to switch it on (about 1–2 cents per photo). Without a key, the
+bot runs barcode-first: its welcome/help messages only offer barcode photos and typing, an unknown barcode gets
+"try typing the product name", and front-of-pack photos, nutrition tables, list photos and teaching new products are off. Claude only *reads* the photo (names and printed
+numbers). It never estimates nutrients, and every health judgement stays in the rule-based `scoring.py`.
+
+**Teaching the bot a product it doesn't know.** An unknown barcode or front photo makes the bot ask for the nutrition
+table (and the front, for the name). The shopper gets their answer from their own photo straight away, and the numbers
+are saved for everyone:
+
+- one shopper's reading is shown to others as *"from one shopper's photo, not yet confirmed"*
+- once two different shoppers' readings agree (within 10%), it is shown as *"from shoppers' photos"*
+- readings that fail the sanity checks (impossible values, calories not matching fat/carbs/protein) are rejected
+- photos are never stored, only the numbers; `STOP` keeps a user's contributions but removes the link to them
+
+Tests (no API key needed):
+
+- `.venv/bin/python tests/test_team_db.py`: the team database: rules, grades, swaps, MORE, reminders
+- `.venv/bin/python tests/test_barcode_only.py`: barcode-first mode, real barcode decoding on generated photos
+- `.venv/bin/python tests/test_photo_flows.py`: the optional photo flows, with canned photo readings
+
+## 4. The product catalogue
+
+`poshanscan/data/catalog.db` holds the Open Food Facts products sold in India that passed `quality.py`.
+`catalog_report.txt` lists how many were kept and why the rest were rejected (useful for the report). To rebuild it with
+newer data:
+
+```bash
+.venv/bin/pip install -r scripts/requirements-import.txt
+.venv/bin/python scripts/import_off.py
+```
 
 ## Editing the data (no coding needed)
+
+**The team's food database is the main source.** Edit the spreadsheet (`PoshanScan food database v2.xlsx`), then:
+
+```bash
+.venv/bin/pip install -r scripts/requirements-import.txt
+.venv/bin/python scripts/import_team_db.py "path/to/PoshanScan food database v2.xlsx"
+```
+
+This rewrites `poshanscan/data/team/` and the bot uses it on its next start. What the bot takes from the sheet:
+
+- **Products**: nutrition, added sugar, serving size, fried, confidence, and the three swaps (`s1_`–`s3_` columns:
+  change a swap by typing another alternative ID in the sheet, as its Read Me explains)
+- **Healthy Alternatives**: the swap names, prices and reasons. Alternatives can also be scanned or typed themselves
+- **Read Me** yellow cells: warning limits, daily limits, teaspoon size, grade bands. Change the limits there the day
+  FSSAI notifies its own numbers
+- **Nudge Messages**: the English reminder wording (Hindi versions are in `poshanscan/nudges.py`)
+
+Names shown to shoppers are built from brand + product + variant, with research notes such as "flavour not stated" or
+the study site of a street-food sample left out. The sheet's `display_name` is still searchable.
+
+**Older data (used for products the team sheet doesn't have):**
 
 - `poshanscan/data/products.csv` has 50 common Indian products. Values are per 100 g/ml and come from Open Food Facts,
   which is crowd-sourced, so **check each row against the real pack before any pilot**. To add a product, scan its
@@ -62,19 +121,27 @@ Every health judgement stays in the rule-based `scoring.py`.
 
 ## Rules used (cite these in the report)
 
+Read from the team spreadsheet's Read Me sheet (`poshanscan/data/team/settings.json`):
+
 | | Solid (per 100 g) | Liquid (per 100 ml) | Daily limit (ICMR-NIN 2024) |
 |---|---|---|---|
-| Sugar | 10 g | 5 g | 25 g added sugar |
+| Sugar | 10 g | 5 g | 25 g added sugar (about 6 teaspoons) |
 | Sodium | 400 mg | 100 mg | 5 g salt |
-| Saturated fat | 4 g | 3 g | ~22 g (10% of 2000 kcal) |
+| Saturated fat | 4 g | 3 g | ~22 g (10% of 2000 kcal; not in the team sheet) |
 
-The thresholds are from Chile's Ley 20.606 (final phase). Labels give *total* sugar, so naturally sweet foods such as lassi
-and juice are judged on total sugar. Note this as a limitation.
+- Thresholds are from Chile's Ley 20.606 (final stage). A warning fires only when a value is **strictly greater**
+  than its limit.
+- Sugar uses **added sugar** when the label gives it, otherwise total sugar ("total sugar basis"), so naturally sweet
+  foods without an added-sugar figure (lassi, juice) are judged on total sugar. Note this as a limitation.
+- Grades: each nutrient's value ÷ its limit gives A (≤ 0.25), B (≤ 0.5), C (≤ 1), D (≤ 2) or E (> 2). The overall grade
+  is the worst letter, so D and E always mean a warning and A–C never do.
+- Reminders count single product checks only, not shopping-list items (a list is a plan, not what was eaten).
 
 ## Data collected (for the ethics section)
 
 `poshanscan.db` stores a salted hash of the phone number (never the number itself), consent, language, and each
-scan/warning/swap/feedback event. `STOP` deletes all of a user's rows. Nothing is sent to anyone else, except
-photos when the optional Claude step is on, and barcodes looked up on Open Food Facts.
+scan/warning/swap/feedback event, plus the label numbers shoppers contribute. `STOP` deletes all of a user's rows and
+unlinks their contributions. Photos are sent to Anthropic's API to be read and are not stored by the bot. Barcodes
+not in our data are looked up on Open Food Facts. Contributed label numbers are shown to other users, never who sent them.
 
 To see results: `sqlite3 poshanscan.db "select kind, product, nutrient, detail from events"`.
