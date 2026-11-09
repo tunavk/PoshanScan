@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS events (
     ts REAL, uid TEXT, kind TEXT, product TEXT, nutrient TEXT, swap TEXT, detail TEXT
 );
 CREATE INDEX IF NOT EXISTS events_uid_ts ON events (uid, ts);
+CREATE TABLE IF NOT EXISTS intake (
+    ts REAL, uid TEXT, product TEXT, grp TEXT, high_sugar INTEGER, high_salt INTEGER,
+    sugar_tsp REAL, salt_g REAL, clean INTEGER
+);
+CREATE INDEX IF NOT EXISTS intake_uid_ts ON intake (uid, ts);
 """)
 
 WEEK = 7 * 24 * 3600
@@ -50,6 +55,7 @@ def update_user(u: str, **fields):
 def delete_user(u: str):
     _db.execute("DELETE FROM users WHERE uid=?", (u,))
     _db.execute("DELETE FROM events WHERE uid=?", (u,))
+    _db.execute("DELETE FROM intake WHERE uid=?", (u,))
     _db.commit()
 
 
@@ -59,18 +65,10 @@ def log(u: str, kind: str, product: str = "", nutrient: str = "", swap: str = ""
     _db.commit()
 
 
-def high_count_this_week(u: str, nutrient: str) -> int:
-    """How many different products high in `nutrient` the user checked in the last 7 days.
-    The same product on the same day counts once, so re-scanning one pack isn't a 'pattern'."""
-    q = f"""SELECT COUNT(DISTINCT product || date(ts, 'unixepoch')) FROM events
-            WHERE uid=? AND nutrient=? AND ts>? AND kind IN ({",".join("?" * len(CHECK_KINDS))})"""
-    return _db.execute(q, (u, nutrient, time.time() - WEEK, *CHECK_KINDS)).fetchone()[0]
-
-
 def week_summary(u: str) -> dict:
     since = time.time() - WEEK
     marks = ",".join("?" * len(CHECK_KINDS))
-    # Same product on the same day counts once, matching high_count_this_week.
+    # Same product on the same day counts once, so re-scanning one pack isn't counted twice.
     checked = _db.execute(f"""SELECT COUNT(DISTINCT product || date(ts, 'unixepoch')) FROM events
                               WHERE uid=? AND ts>? AND kind IN ({marks})""",
                           (u, since, *CHECK_KINDS)).fetchone()[0]
@@ -82,3 +80,39 @@ def week_summary(u: str) -> dict:
                                 (u, since)).fetchall())
     return {"checked": checked, "high": high,
             "switch": feedback.get("switch", 0), "answered": sum(feedback.values())}
+
+
+# ---------- daily picks, for the team's "My Day" nudges ----------
+# One row per single product check (not shopping-list items: a list is a plan, not what was eaten).
+# Days are local calendar days.
+
+def log_intake(u: str, product: str, grp: str, high_sugar: bool, high_salt: bool,
+               sugar_tsp: float, salt_g: float, clean: bool) -> None:
+    _db.execute("INSERT INTO intake VALUES (?,?,?,?,?,?,?,?,?)",
+                (time.time(), u, product, grp, int(high_sugar), int(high_salt), sugar_tsp, salt_g, int(clean)))
+    _db.commit()
+
+
+def today(u: str) -> dict:
+    """Totals for today so far, including the pick just logged."""
+    r = _db.execute("""SELECT COUNT(*), COALESCE(SUM(high_sugar),0), COALESCE(SUM(high_salt),0),
+                              COALESCE(SUM(sugar_tsp),0), COALESCE(SUM(salt_g),0), COALESCE(SUM(clean),0)
+                       FROM intake WHERE uid=? AND date(ts,'unixepoch','localtime') = date('now','localtime')""",
+                    (u,)).fetchone()
+    return dict(zip(("picks", "high_sugar", "high_salt", "sugar_tsp", "salt_g", "clean"), r))
+
+
+def group_today(u: str, grp: str) -> int:
+    return _db.execute("""SELECT COUNT(*) FROM intake WHERE uid=? AND grp=?
+                          AND date(ts,'unixepoch','localtime') = date('now','localtime')""", (u, grp)).fetchone()[0]
+
+
+def group_streak(u: str, grp: str) -> int:
+    """Consecutive days, ending today, with at least one pick in this group."""
+    days = {r[0] for r in _db.execute("""SELECT DISTINCT CAST(julianday(date(ts,'unixepoch','localtime')) AS INTEGER)
+                                          FROM intake WHERE uid=? AND grp=?""", (u, grp))}
+    today_n = _db.execute("SELECT CAST(julianday(date('now','localtime')) AS INTEGER)").fetchone()[0]
+    n = 0
+    while today_n - n in days:
+        n += 1
+    return n

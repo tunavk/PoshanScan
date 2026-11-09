@@ -1,5 +1,6 @@
 """Product lookup across every source, most trusted first:
-curated CSV -> imported Open Food Facts catalogue -> shoppers' contributions -> live Open Food Facts API.
+team food database -> curated CSV -> imported Open Food Facts catalogue -> shoppers' contributions
+-> live Open Food Facts API.
 """
 import csv
 import difflib
@@ -8,7 +9,7 @@ from pathlib import Path
 
 import httpx
 
-from . import catalog, contrib, quality
+from . import catalog, contrib, quality, team
 from .model import TRUST_ORDER, Product, match_score, num, tokens
 
 DATA = Path(__file__).parent / "data"
@@ -100,8 +101,21 @@ def by_barcode(code: str) -> Product | None:
     code = re.sub(r"\D", "", code)
     if not code:
         return None
-    return (BY_BARCODE.get(code) or catalog.by_barcode(code) or contrib.by_barcode(code)
-            or _open_food_facts(code))
+    return (team.by_barcode(code) or BY_BARCODE.get(code) or catalog.by_barcode(code)
+            or contrib.by_barcode(code) or _open_food_facts(code))
+
+
+def _prefer_team(p: Product) -> Product:
+    """A curated product the team database also has (same barcode, or the same name) -> the team's row,
+    which has added sugar, a grade and three matched swaps."""
+    if p.source == "team":
+        return p
+    if p.barcode and team.by_barcode(p.barcode):
+        return team.by_barcode(p.barcode)
+    hits = team.search(p.name, limit=1)
+    if hits and hits[0][1] >= 0.9 and hits[0][0].form == p.form:
+        return hits[0][0]
+    return p
 
 
 def _open_food_facts(code: str) -> Product | None:
@@ -154,25 +168,25 @@ def by_name(text: str) -> Product | None:
         return None
     words = tokens(q)
     best, best_len = None, 0
-    for p in PRODUCTS:
+    for p in team.PRODUCTS + PRODUCTS + team.ALTERNATIVES:  # ties go to the earlier (more trusted) source
         for a in p.aliases + [p.name.lower()]:
             if len(a) > best_len and re.search(rf"(?<![a-z]){re.escape(a)}(?![a-z])", q):
                 best, best_len = p, len(a)
     if best and words <= tokens(" ".join([best.name] + best.aliases)):
-        return best  # the alias explains the whole line ("2 packets maggi")
+        return _prefer_team(best)  # the alias explains the whole line ("2 packets maggi")
     # A wider catalogue match only counts if it's strong; one-word lines need a near-exact name.
     hits = search(q, limit=1)
     needed = 0.95 if len(words) == 1 else 0.85
     if hits and hits[0][1] >= needed:
         if not best or hits[0][1] > match_score(words, tokens(" ".join([best.name] + best.aliases))):
-            return hits[0][0]  # "haldiram moong dal" is Moong Dal, not our "haldiram" Aloo Bhujia
+            return _prefer_team(hits[0][0])  # "haldiram moong dal" is Moong Dal, not our "haldiram" Aloo Bhujia
     if best:
-        return best
+        return _prefer_team(best)
     names = {a: p for p in PRODUCTS for a in p.aliases}
     for word in [q] + q.split():
         hit = difflib.get_close_matches(word, names.keys(), n=1, cutoff=0.8)
         if hit:
-            return names[hit[0]]
+            return _prefer_team(names[hit[0]])
     return None
 
 
@@ -183,7 +197,7 @@ def search(text: str, limit: int = 3) -> list[tuple[Product, float]]:
         return []
     found: dict[str, tuple[Product, float]] = {}
     curated = [(p, max(match_score(q, tokens(n)) for n in [p.name] + p.aliases)) for p in PRODUCTS]
-    for p, s in curated + catalog.search(text, limit=10) + contrib.search(text, limit=5):
+    for p, s in team.search(text) + curated + catalog.search(text, limit=10) + contrib.search(text, limit=5):
         k = p.barcode or p.name
         if s > 0 and (k not in found or s > found[k][1]):
             found[k] = (p, s)

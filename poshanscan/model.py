@@ -3,12 +3,13 @@ import re
 from dataclasses import dataclass, field
 
 # Where a product's numbers came from, most trusted first.
+#   team        - the team's food database (data/team, imported from the spreadsheet)
 #   curated     - our own products.csv (to be checked against real packs by the team)
 #   imported    - Open Food Facts India, passed quality.py checks
 #   confirmed   - 2+ shoppers' label photos that agree
 #   contributed - 1 shopper's label photo
 #   label photo - the label this user just sent (not saved as a product)
-TRUST_ORDER = ["curated", "imported", "confirmed", "contributed"]
+TRUST_ORDER = ["team", "curated", "imported", "confirmed", "contributed"]
 
 
 @dataclass
@@ -26,6 +27,19 @@ class Product:
     barcode: str = ""
     source: str = "curated"
     aliases: list[str] = field(default_factory=list)
+    added_sugar_g: float | None = None  # per 100 g/ml; used instead of total sugar when the label gives it
+    # Team database only:
+    team_id: str = ""             # P0001 (product) or A0001 (healthy alternative)
+    swaps: list[dict] = field(default_factory=list)  # up to 3: Same craving, Cheaper, Best for health
+    confidence: str = ""          # label, openfoodfacts, brand_published, database, study, lab_test, estimate...
+    group: str = ""               # sugary, salty, fried, fatty, clean, no data
+    fried: bool | None = None
+    craving: str = ""
+
+    @property
+    def sugar_used(self) -> float | None:
+        """Added sugar when known, else total sugar (team rule: "total sugar basis")."""
+        return self.added_sugar_g if self.added_sugar_g is not None else self.sugar_g
 
     @property
     def price_per_serving(self) -> float | None:

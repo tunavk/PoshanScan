@@ -8,8 +8,8 @@ from pathlib import Path
 import zxingcpp
 from PIL import Image
 
-from . import contrib, label_image, products, quality, store, swaps, vision
-from .messages import choose_list, pattern_line, t, warning, week_summary
+from . import contrib, label_image, nudges, products, quality, store, swaps, team, vision
+from .messages import choose_list, more_swaps, t, warning, week_summary
 from .model import match_score, tokens
 from .products import Product
 from .scoring import score, Verdict
@@ -88,9 +88,15 @@ def handle(msg: Incoming) -> list[Reply]:
     if state.get("choose") and cmd.isdigit():
         return _handle_choice(u, lang, state, int(cmd))
     if cmd in {"1", "2"} and state.get("last"):
-        store.log(u, "feedback", state["last"], detail="switch" if cmd == "1" else "keep")
-        store.update_user(u, state={})
+        store.log(u, "feedback", state.pop("last"), detail="switch" if cmd == "1" else "keep")
+        store.update_user(u, state=state)
         return [Reply(t(lang, "thanks_switch" if cmd == "1" else "thanks_keep"))]
+    if cmd in {"more", "aur", "और"}:
+        p = team.BY_ID.get(state.get("more_id", ""))
+        if not p:
+            return [Reply(t(lang, "more_none"))]
+        store.log(u, "more_swaps", p.name)
+        return [Reply(more_swaps(p.name, swaps.more(p), lang))]
 
     if msg.images:
         return _handle_images(u, lang, state, msg.images)
@@ -296,7 +302,8 @@ def _handle_list(u, lang, items: list[str]) -> list[Reply]:
     # Worst first by how far over its "high in" threshold each item is, so salt and fat
     # problems aren't drowned out by sugar's tighter daily limit.
     high = sorted((v for v in verdicts if v.is_high), key=lambda v: v.ratio, reverse=True)
-    fine = [v.product.name for v in verdicts if not v.is_high]
+    fine = [v.product.name for v in verdicts if not v.is_high and not v.no_data]
+    no_label = [v.product.name for v in verdicts if v.no_data]
     store.log(u, "list", detail=f"{len(found)} found, {len(high)} high, {len(unknown)} unknown")
     for name in fine:
         store.log(u, "list_item", name, detail="ok")
@@ -304,6 +311,8 @@ def _handle_list(u, lang, items: list[str]) -> list[Reply]:
     extras = []
     if fine:
         extras.append(t(lang, "list_fine", items=", ".join(fine)))
+    if no_label:
+        extras.append(t(lang, "list_nodata", items=", ".join(no_label)))
     if unknown:
         extras.append(t(lang, "unknown_items", items=", ".join(unknown[:5])))
     if not high:
@@ -312,7 +321,7 @@ def _handle_list(u, lang, items: list[str]) -> list[Reply]:
     replies = [Reply("\n\n".join([t(lang, "list_head", n=len(found), high=len(high))] + extras))]
     shown, rest = high[:MAX_LIST_WARNINGS], high[MAX_LIST_WARNINGS:]
     for v in shown:
-        replies.append(_warning_reply(u, lang, v, kind="list_item", show_pattern=False))
+        replies.append(_warning_reply(u, lang, v, kind="list_item"))
     for v in rest:
         store.log(u, "list_item", v.product.name, v.nutrient)
     if rest:
@@ -322,24 +331,48 @@ def _handle_list(u, lang, items: list[str]) -> list[Reply]:
     return replies
 
 
+NUTRIENT_WORDS = {"en": {"sugar": "sugar", "salt": "sodium", "satfat": "saturated fat"},
+                  "hi": {"sugar": "चीनी", "salt": "सोडियम", "satfat": "सैचुरेटेड फैट"}}
+
+
+def _ok_text(v: Verdict, lang: str, praise: str = "") -> str:
+    if v.no_data:
+        return t(lang, "no_data_product", name=v.product.name)
+    missing = [n for n in ("sugar", "salt", "satfat") if n not in v.grades]
+    if missing:
+        words = NUTRIENT_WORDS.get(lang, NUTRIENT_WORDS["en"])
+        text = t(lang, "ok_partial", name=v.product.name, grade=v.grade, missing=", ".join(words[n] for n in missing))
+        return text + (f"\n\n{praise}" if praise else "")
+    return t(lang, "ok", name=v.product.name, grade=v.grade, praise=praise or t(lang, "ok_default"))
+
+
 def _verdict_replies(u, lang, p: Product, kind: str) -> list[Reply]:
+    """A single product check: warning (or "nothing high"), plus today's reminder from the team's nudges."""
     v = score(p)
+    state = store.get_user(u)["state"]
+    state.pop("last", None), state.pop("more_id", None)
     if not v.is_high:
-        store.log(u, kind, p.name, detail="ok")
-        return [Reply(t(lang, "ok", name=p.name))]
-    reply = _warning_reply(u, lang, v, kind)
+        store.log(u, kind, p.name, detail="no data" if v.no_data else "ok")
+        nudge = "" if v.no_data else nudges.record_and_nudge(u, v, lang)  # praise, or "this one is fried"
+        store.update_user(u, state=state)
+        return [Reply(_ok_text(v, lang, praise=nudge))]
+    reply = _warning_reply(u, lang, v, kind, show_nudge=True)
     reply.text += "\n\n" + t(lang, "feedback")
-    store.update_user(u, state={"last": p.name})
+    state["last"] = p.name
+    if len(p.swaps) > 1:
+        reply.text += "\n" + t(lang, "more_hint")
+        state["more_id"] = p.team_id
+    store.update_user(u, state=state)
     return [reply]
 
 
-def _warning_reply(u, lang, v: Verdict, kind: str, show_pattern: bool = True) -> Reply:
-    """One warning + one swap for one product, logged to the 7-day memory.
-    Lists skip the pattern line: counting items within the same list isn't a weekly pattern."""
+def _warning_reply(u, lang, v: Verdict, kind: str, show_nudge: bool = False) -> Reply:
+    """One warning + one swap for one product, logged for the weekly summary.
+    Only single checks count as today's picks for the reminders: a shopping list is a plan, not what was eaten."""
     swap = swaps.pick(v)
     store.log(u, kind, v.product.name, v.nutrient, swap.text if swap else "")
     body = warning(v, swap, lang)
-    repeat = show_pattern and pattern_line(store.high_count_this_week(u, v.nutrient), v.nutrient, lang)
-    if repeat:
-        body += "\n\n" + repeat
+    nudge = show_nudge and nudges.record_and_nudge(u, v, lang, swap_name=swap.text if swap else "")
+    if nudge:
+        body += "\n\n📅 " + nudge
     return Reply(body, image=label_image.render(v))

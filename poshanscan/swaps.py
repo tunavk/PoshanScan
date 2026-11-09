@@ -1,4 +1,8 @@
-"""Pick ONE realistic, affordable alternative from the curated swap table."""
+"""Pick ONE realistic, affordable alternative.
+
+Team database products carry three matched swaps (Same craving, Cheaper, Best for health); the first
+is shown and the other two are kept for the MORE reply. Everything else uses the curated swap table.
+"""
 import csv
 from dataclasses import dataclass
 
@@ -14,6 +18,28 @@ class Swap:
     cost_note: str
     product: Product | None = None
     pct_less: int | None = None
+    # Team swaps only:
+    label: str = ""                 # Same craving / Cheaper / Best for health
+    reason: str = ""                # "Still sweet and crunchy, with no added sugar and plenty of fibre."
+    grade: str = ""
+    sugar_saved_tsp: float | None = None
+    salt_saved_g: float | None = None
+    in_moderation: bool = False
+
+
+def team_swap(s: dict) -> Swap:
+    pps = s["price_per_serving"]
+    return Swap(
+        text=s["name"], cost_note=f"₹{pps:.0f} a serving" if pps is not None else "",
+        label=s["label"], reason=s["reason"], grade=s["grade"],
+        sugar_saved_tsp=s["sugar_saved_tsp"], salt_saved_g=s["salt_saved_g"],
+        in_moderation=s["use_note"] == "in moderation",
+    )
+
+
+def more(p: Product) -> list[Swap]:
+    """The team's other swap cards for MORE (Cheaper, Best for health)."""
+    return [team_swap(s) for s in p.swaps[1:]]
 
 
 def _load():
@@ -25,6 +51,8 @@ SWAPS = _load()
 
 
 def pick(v: Verdict) -> Swap | None:
+    if v.product.swaps:
+        return team_swap(v.product.swaps[0])
     cat, nut = v.product.category, v.nutrient
     for want_cat, want_nut in [(cat, nut), (cat, "any"), ("any", "any")]:
         for row in SWAPS:
